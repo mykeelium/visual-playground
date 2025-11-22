@@ -1,21 +1,88 @@
 package main
 
 import (
-	"fmt"
+	// "fmt"
+	"math"
+	"math/rand"
+	"time"
 
 	"github.com/gopxl/pixel/v2"
 	"github.com/gopxl/pixel/v2/backends/opengl"
 	"github.com/gopxl/pixel/v2/ext/imdraw"
-	"github.com/mykeelium/visual-playground/collatz"
+
+	// "github.com/mykeelium/visual-playground/collatz"
 	"github.com/mykeelium/visual-playground/primitives"
 	"golang.org/x/image/colornames"
 )
 
-func main() {
-	tree := collatz.BuildTree(100)
+var (
+	gravity     = primitives.Float2{X: 0, Y: -400}
+	worldBounds = primitives.WorldBounds{
+		MinY: floor,
+		MinX: 0,
+		MaxY: height,
+		MaxX: width,
+	}
+	circles []*primitives.Entity
+)
 
-	fmt.Println("tree:")
-	collatz.PrintOrganicTree(&tree)
+const (
+	width        float64 = 1024
+	height       float64 = 768
+	floor        float64 = 0
+	resititution float64 = 0.6
+	friction     float64 = 0.95
+)
+
+func CreateChaoticCircles(
+	count int,
+	radius float64,
+	windowWidth float64,
+	windowHeight float64,
+	speedMin float64,
+	speedMax float64,
+) []*primitives.Entity {
+	circles := []*primitives.Entity{}
+
+	for range count {
+		x := rand.Float64()*(windowWidth-2*radius) + radius
+		y := rand.Float64()*(windowHeight-2*radius) + radius
+
+		e := primitives.NewCircleEntity(x, y, radius, 0,
+			rand.Float64(), // red
+			rand.Float64(), // green
+			rand.Float64(), // blue
+		)
+
+		speed := speedMin + rand.Float64()*(speedMax-speedMin)
+		angle := rand.Float64() * 2 * math.Pi
+		vx := math.Cos(angle) * speed
+		vy := math.Sin(angle) * speed
+
+		e.Physics.Velocity = primitives.Float2(pixel.V(vx, vy))
+
+		circles = append(circles, e)
+	}
+
+	return circles
+}
+
+func ResetSimulation() {
+	circles = CreateChaoticCircles(
+		50, // count
+		10, // radius
+		width,
+		height,
+		50,  // min speed
+		200, // max speed
+	)
+}
+
+func main() {
+	// tree := collatz.BuildTree(100)
+	// fmt.Println("tree:")
+	// collatz.PrintOrganicTree(&tree)
+	rand.Seed(42)
 	opengl.Run(run)
 }
 
@@ -25,15 +92,26 @@ func drawEntities(imd *imdraw.IMDraw, entities []*primitives.Entity) {
 	}
 }
 
-func updateEntities(entities []*primitives.Entity) {
+func updateEntities(entities []*primitives.Entity, grid *primitives.SpatialGrid, dt float64) {
+	grid.Clear()
+
 	for _, e := range entities {
-		e.Update(float64(1) / 30)
+		e.ApplyGravity(gravity)
+		e.Update(dt)
+		e.HandleBoundaryCollisions(worldBounds, resititution, friction)
+
+		grid.Insert(e)
+	}
+
+	// Multiple iteration to try and handle all collisions
+	for range 4 {
+		for _, e := range entities {
+			e.HandleObjectCollisions(grid)
+		}
 	}
 }
 
 func run() {
-	var width float64 = 1024
-	var height float64 = 768
 	cfg := opengl.WindowConfig{
 		Title:  "Pixel Rocks!",
 		Bounds: pixel.R(0, 0, width, height),
@@ -46,24 +124,28 @@ func run() {
 	}
 
 	imd := imdraw.New(nil)
-	circles := []*primitives.Entity{}
-
-	var startX float64 = 400
-	for range 10 {
-		var startY float64 = 750
-		for range 2 {
-			circles = append(circles, primitives.NewCircleEntity(startX, startY, 10, 0, 1, 0, 0))
-		}
-		startX += 40
+	grid := &primitives.SpatialGrid{
+		CellSize: 25,
+		Buckets:  map[[2]int][]*primitives.Entity{},
 	}
+	ResetSimulation()
 
-	gravity := primitives.Float2{X: 0, Y: -9.8}
+	last := time.Now()
 
 	for !win.Closed() {
+		if win.JustPressed(pixel.KeyR) {
+			ResetSimulation()
+		}
+		now := time.Now()
+		dt := now.Sub(last).Seconds()
+		last = now
+
+		// Update Simulation
+		updateEntities(circles, grid, dt)
+
+		// Draw
 		imd.Clear()
 		win.Clear(colornames.Black)
-		primitives.ApplyGravity(circles, gravity)
-		updateEntities(circles)
 		drawEntities(imd, circles)
 		imd.Draw(win)
 		win.Update()

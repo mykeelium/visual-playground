@@ -1,6 +1,8 @@
 package primitives
 
 import (
+	"math"
+
 	"github.com/gopxl/pixel/v2"
 	"github.com/gopxl/pixel/v2/ext/imdraw"
 )
@@ -38,6 +40,18 @@ type Float2 struct {
 
 func (v Float2) Add(o Float2) Float2 {
 	return Float2{v.X + o.X, v.Y + o.Y}
+}
+
+func (v Float2) Sub(o Float2) Float2 {
+	return Float2{v.X - o.X, v.Y - o.Y}
+}
+
+func (v Float2) Dot(o Float2) float64 {
+	return v.X*o.X + v.Y*o.Y
+}
+
+func (v Float2) Len() float64 {
+	return math.Sqrt(v.X*v.X + v.Y*v.Y)
 }
 
 func (v Float2) Scale(f float64) Float2 {
@@ -87,12 +101,12 @@ type Entity struct {
 	Render  RenderComponet
 }
 
-func (e *Entity) Draw(imd *imdraw.IMDraw) {
-	e.Render.Draw(imd, pixel.Vec{X: e.Physics.Position.X, Y: e.Physics.Position.Y})
+func (entity *Entity) Draw(imd *imdraw.IMDraw) {
+	entity.Render.Draw(imd, pixel.Vec{X: entity.Physics.Position.X, Y: entity.Physics.Position.Y})
 }
 
-func (e *Entity) Update(dt float64) {
-	e.Physics.Integrate(dt)
+func (entity *Entity) Update(dt float64) {
+	entity.Physics.Integrate(dt)
 }
 
 func NewCircleEntity(x, y, radius, thickness float64, r, g, b float64) *Entity {
@@ -106,10 +120,4 @@ func NewCircleEntity(x, y, radius, thickness float64, r, g, b float64) *Entity {
 		Color:     Color{Red: r, Green: g, Blue: b},
 	}
 	return &Entity{Physics: physics, Render: render}
-}
-
-func ApplyGravity(e []*Entity, g Float2) {
-	for _, ent := range e {
-		ent.Physics.ApplyForce(g.Scale(ent.Physics.Mass))
-	}
 }

@@ -78,6 +78,20 @@ func (p *PhysicsComponent) Integrate(dt float64) {
 	p.Acceleration = ZeroFloat2
 }
 
+func clamp(x, min, max float64) float64 {
+	if x < min {
+		return min
+	}
+	if x > max {
+		return max
+	}
+	return x
+}
+
+func lerp(a, b, t float64) float64 {
+	return a + (b-a)*t
+}
+
 // The RenderComponet holds the logic for rendering objects
 type RenderComponet interface {
 	Draw(imd *imdraw.IMDraw, position pixel.Vec)

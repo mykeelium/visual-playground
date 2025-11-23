@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	gravity     = primitives.Float2{X: 0, Y: -400}
+	gravity     = primitives.Float2{X: 0, Y: -200}
 	worldBounds = primitives.WorldBounds{
 		MinY: floor,
 		MinX: 0,
@@ -27,8 +27,8 @@ var (
 )
 
 const (
-	width        float64 = 1024
-	height       float64 = 768
+	width        float64 = 2048
+	height       float64 = 1024
 	floor        float64 = 0
 	resititution float64 = 0.6
 	friction     float64 = 0.95
@@ -42,7 +42,7 @@ func CreateChaoticCircles(
 	speedMin float64,
 	speedMax float64,
 ) []*primitives.Entity {
-	circles := []*primitives.Entity{}
+	circles = []*primitives.Entity{}
 
 	for range count {
 		x := rand.Float64()*(windowWidth-2*radius) + radius
@@ -69,10 +69,11 @@ func CreateChaoticCircles(
 
 func ResetSimulation() {
 	circles = CreateChaoticCircles(
-		50, // count
-		10, // radius
+		1000, // count
+		5,    // radius
 		width,
 		height,
+
 		50,  // min speed
 		200, // max speed
 	)
@@ -99,16 +100,18 @@ func updateEntities(entities []*primitives.Entity, grid *primitives.SpatialGrid,
 		e.ApplyGravity(gravity)
 		e.Update(dt)
 		e.HandleBoundaryCollisions(worldBounds, resititution, friction)
+		e.UpdateColorBasedOnSpeed(800)
 
 		grid.Insert(e)
 	}
 
 	// Multiple iteration to try and handle all collisions
-	for range 4 {
-		for _, e := range entities {
-			e.HandleObjectCollisions(grid)
-		}
+
+	// for range 4 {
+	for _, e := range entities {
+		e.HandleObjectCollisions(grid)
 	}
+	//}
 }
 
 func run() {
@@ -136,9 +139,25 @@ func run() {
 		if win.JustPressed(pixel.KeyR) {
 			ResetSimulation()
 		}
+
+		if win.JustPressed(pixel.KeyX) {
+			win.SetClosed(true)
+			continue
+		}
+
 		now := time.Now()
 		dt := now.Sub(last).Seconds()
 		last = now
+
+		if win.Pressed(pixel.MouseButtonLeft) {
+			mousePosition := win.MousePosition()
+			primitives.ApplyCircularForce(true, circles, mousePosition, 300, 5000, dt)
+		}
+
+		if win.Pressed(pixel.MouseButtonRight) {
+			mousePosition := win.MousePosition()
+			primitives.ApplyCircularForce(false, circles, mousePosition, 300, 5000, dt)
+		}
 
 		// Update Simulation
 		updateEntities(circles, grid, dt)

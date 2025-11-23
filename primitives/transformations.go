@@ -2,6 +2,8 @@ package primitives
 
 import (
 	"math"
+
+	"github.com/gopxl/pixel/v2"
 )
 
 type WorldBounds struct {
@@ -71,6 +73,38 @@ func (entity *Entity) ApplyGravity(g Float2) {
 	entity.Physics.ApplyForce(g.Scale(entity.Physics.Mass))
 }
 
+func ApplyCircularForce(attrative bool, entities []*Entity, point pixel.Vec, radius float64, strengh float64, dt float64) {
+	r2 := radius * radius
+
+	for _, e := range entities {
+		position := e.Physics.Position
+
+		dx := point.X - position.X
+		dy := point.Y - position.Y
+
+		dist2 := dx*dx + dy*dy
+
+		if dist2 > r2 {
+			continue
+		}
+
+		dist := math.Sqrt(dist2)
+		if dist < 0.0001 {
+			continue // avoid devide by 0
+		}
+
+		var direction pixel.Vec
+		if attrative {
+			direction = pixel.V(dx/dist, dy/dist)
+		} else {
+			direction = pixel.V(-dx/dist, -dy/dist)
+		}
+		falloff := 1.0 - (dist / radius)
+		acceleration := direction.Scaled(strengh * falloff * dt)
+		e.Physics.Velocity = e.Physics.Velocity.Add(Float2(acceleration))
+	}
+}
+
 func (entity *Entity) HandleObjectCollisions(grid *SpatialGrid) {
 	for _, cell := range grid.Buckets {
 		for i := 0; i < len(cell); i++ {
@@ -114,6 +148,20 @@ func resolveCollisions(a, b *Entity) {
 			a.Physics.Velocity = a.Physics.Velocity.Sub(impulse.Scale(a.Physics.Mass))
 			b.Physics.Velocity = b.Physics.Velocity.Add(impulse.Scale(b.Physics.Mass))
 		}
+	}
+}
+
+func (e *Entity) UpdateColorBasedOnSpeed(maxSpeed float64) {
+	v := e.Physics.Velocity.Len()
+	t := clamp(v/maxSpeed, 0, 1)
+
+	// BLUE → RED gradient
+	r := lerp(0.0, 1.0, t)
+	g := 0.0
+	b := lerp(1.0, 0.0, t)
+
+	if circle, ok := e.Render.(*CircleRender); ok {
+		circle.Color = Color{Red: r, Green: g, Blue: b}
 	}
 }
 

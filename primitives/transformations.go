@@ -32,6 +32,27 @@ func (grid *SpatialGrid) Insert(entity *Entity) {
 	grid.Buckets[key] = append(grid.Buckets[key], entity)
 }
 
+func forEachNeighbor(grid *SpatialGrid, position Float2, h float64, fn func(*Entity)) {
+	cellSize := grid.CellSize
+	radiusCells := int(math.Ceil(h / cellSize))
+
+	cx := int(math.Floor(position.X / cellSize))
+	cy := int(math.Floor(position.Y / cellSize))
+
+	for dx := -radiusCells; dx <= radiusCells; dx++ {
+		for dy := -radiusCells; dy <= radiusCells; dy++ {
+			key := [2]int{cx + dx, cy + dy}
+			cell, ok := grid.Buckets[key]
+			if !ok {
+				continue
+			}
+			for _, other := range cell {
+				fn(other)
+			}
+		}
+	}
+}
+
 func (entity *Entity) HandleBoundaryCollisions(bounds WorldBounds, restitution float64, friction float64) {
 	// only handling circles for now
 	circle, ok := entity.Render.(*CircleRender)

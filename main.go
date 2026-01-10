@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	gravity     = primitives.Float2{X: 0, Y: -200}
+	gravity     = primitives.Float2{X: 0, Y: -500}
 	worldBounds = primitives.WorldBounds{
 		MinY: floor,
 		MinX: 0,
@@ -69,11 +69,10 @@ func CreateChaoticCircles(
 
 func ResetSimulation() {
 	circles = CreateChaoticCircles(
-		1000, // count
-		5,    // radius
+		500, // count
+		25,  // radius
 		width,
 		height,
-
 		50,  // min speed
 		200, // max speed
 	)
@@ -94,23 +93,26 @@ func drawEntities(imd *imdraw.IMDraw, entities []*primitives.Entity) {
 }
 
 func updateEntities(entities []*primitives.Entity, grid *primitives.SpatialGrid, dt float64) {
-	grid.Clear()
+	iterations := 5
+	for range iterations {
+		primitives.SimulateSPH(entities, grid, primitives.DefaultSPHParams(), dt/float64(iterations), gravity)
+	}
 
 	for _, e := range entities {
-		e.ApplyGravity(gravity)
-		e.Update(dt)
+		// e.ApplyGravity(gravity)
+		// e.Update(dt / 2)
 		e.HandleBoundaryCollisions(worldBounds, resititution, friction)
 		e.UpdateColorBasedOnSpeed(800)
 
-		grid.Insert(e)
+		// grid.Insert(e)
 	}
 
 	// Multiple iteration to try and handle all collisions
 
 	// for range 4 {
-	for _, e := range entities {
-		e.HandleObjectCollisions(grid)
-	}
+	// for _, e := range entities {
+	// 	e.HandleObjectCollisions(grid)
+	// }
 	//}
 }
 
@@ -128,7 +130,7 @@ func run() {
 
 	imd := imdraw.New(nil)
 	grid := &primitives.SpatialGrid{
-		CellSize: 25,
+		CellSize: 15,
 		Buckets:  map[[2]int][]*primitives.Entity{},
 	}
 	ResetSimulation()

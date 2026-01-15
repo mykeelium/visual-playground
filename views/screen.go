@@ -22,9 +22,10 @@ type Plotter interface {
 }
 
 type PixelScreen struct {
-	win   *opengl.Window
-	lastT time.Time
-	dt    float64
+	win    *opengl.Window
+	lastT  time.Time
+	dt     float64
+	canvas *opengl.Canvas
 }
 
 func NewPixelScreen(cfg opengl.WindowConfig) *PixelScreen {
@@ -33,6 +34,10 @@ func NewPixelScreen(cfg opengl.WindowConfig) *PixelScreen {
 		win:   win,
 		lastT: time.Now(),
 	}
+}
+
+func (s *PixelScreen) SetCanvas(canvas *opengl.Canvas) {
+	s.canvas = canvas
 }
 
 func (s *PixelScreen) Window() *opengl.Window { return s.win }

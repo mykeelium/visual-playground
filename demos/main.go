@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"github.com/gopxl/pixel/v2"
 	"github.com/gopxl/pixel/v2/backends/opengl"
 	"github.com/mykeelium/visual-playground/engines"
@@ -48,7 +50,7 @@ func handleInput(win *opengl.Window, p *sources.ScopeParams, dt float64) {
 	}
 }
 
-func run() {
+func runOld() {
 	rate := 12000
 	screen := views.NewPixelScreen(opengl.WindowConfig{
 		Title:  "Lissajous",
@@ -84,6 +86,74 @@ func run() {
 		renderer.BeginFrame(dt)
 		renderer.Draw(engine.Samples())
 		renderer.EndFrame(screen.Window())
+
+		screen.Present()
+	}
+}
+
+func run() {
+	rate := 12000
+
+	screen := views.NewPixelScreen(opengl.WindowConfig{
+		Title:  "Lissajous",
+		Bounds: pixel.R(0, 0, 1024, 768),
+		VSync:  true,
+	})
+	canvas := opengl.NewCanvas(screen.Window().Bounds())
+	screen.SetCanvas(canvas)
+
+	scopeParams := sources.ScopeParams{
+		Gain:  1.0,
+		Decay: 0.96,
+		Fx:    3.0,
+		Fy:    2.0,
+		Phase: 0.0,
+	}
+
+	source := sources.NewLissajous(&scopeParams, float64(rate))
+
+	engine := engines.New(
+		source,
+		engines.WithSampleRate(float64(rate)),
+	)
+
+	// --- rendering setup ---
+	tileW := 256.0
+	tileH := 192.0
+	cols := 4
+	rows := 4
+
+	scope :=
+		renderers.Tile(
+			renderers.Oscilloscope(&scopeParams, tileW, tileH),
+			tileW, tileH,
+			cols, rows,
+		)
+
+	renderer := &renderers.GraphRenderer{
+		Root: scope,
+	}
+
+	start := time.Now()
+
+	for !screen.Window().Closed() {
+		dt := screen.DT()
+		handleInput(screen.Window(), &scopeParams, dt)
+
+		engine.Step(dt)
+
+		renderer.BeginFrame()
+
+		fc := &renderers.FrameContext{
+			Target:  screen.Window(),
+			Time:    time.Since(start).Seconds(),
+			Delta:   dt,
+			Size:    screen.Window().Bounds().Size(),
+			Samples: engine.Samples(),
+		}
+
+		renderer.Draw(fc)
+		renderer.EndFrame(fc)
 
 		screen.Present()
 	}

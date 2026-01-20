@@ -6,6 +6,7 @@ import (
 	"github.com/gopxl/pixel/v2"
 	"github.com/gopxl/pixel/v2/backends/opengl"
 	"github.com/mykeelium/visual-playground/engines"
+	"github.com/mykeelium/visual-playground/meshes"
 	"github.com/mykeelium/visual-playground/renderers"
 	"github.com/mykeelium/visual-playground/sources"
 	"github.com/mykeelium/visual-playground/views"
@@ -96,7 +97,7 @@ func run() {
 
 	screen := views.NewPixelScreen(opengl.WindowConfig{
 		Title:  "Lissajous",
-		Bounds: pixel.R(0, 0, 1024, 768),
+		Bounds: pixel.R(0, 0, 1920, 1080),
 		VSync:  true,
 	})
 	canvas := opengl.NewCanvas(screen.Window().Bounds())
@@ -118,20 +119,24 @@ func run() {
 	)
 
 	// --- rendering setup ---
-	tileW := 256.0
-	tileH := 192.0
-	cols := 4
-	rows := 4
+	tileW := 240.0
+	tileH := 135.0
+	cols := 8
+	rows := 8
+
+	meshRegistry := meshes.NewMeshRegistry()
+	oscMeshID := meshRegistry.Register(meshes.Mesh{Vertices: nil, Mode: meshes.DrawModeLine})
 
 	scope :=
 		renderers.Tile(
-			renderers.Oscilloscope(&scopeParams, tileW, tileH),
+			renderers.Oscilloscope(oscMeshID),
 			tileW, tileH,
 			cols, rows,
 		)
 
 	renderer := &renderers.GraphRenderer{
-		Root: scope,
+		Root:    scope,
+		Backend: renderers.NewIMDrawBackend(meshRegistry),
 	}
 
 	start := time.Now()
@@ -141,19 +146,20 @@ func run() {
 		handleInput(screen.Window(), &scopeParams, dt)
 
 		engine.Step(dt)
+		samples := engine.Samples()
 
-		renderer.BeginFrame()
+		mesh := meshes.BuildOscilloscopeMesh(samples, &scopeParams, tileW, tileH)
+		meshRegistry.Update(oscMeshID, mesh)
 
 		fc := &renderers.FrameContext{
 			Target:  screen.Window(),
 			Time:    time.Since(start).Seconds(),
 			Delta:   dt,
 			Size:    screen.Window().Bounds().Size(),
-			Samples: engine.Samples(),
+			Samples: samples,
 		}
 
-		renderer.Draw(fc)
-		renderer.EndFrame(fc)
+		renderer.Render(fc)
 
 		screen.Present()
 	}

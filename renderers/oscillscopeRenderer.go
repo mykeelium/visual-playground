@@ -6,6 +6,7 @@ import (
 	"github.com/gopxl/pixel/v2"
 	"github.com/gopxl/pixel/v2/backends/opengl"
 	"github.com/gopxl/pixel/v2/ext/imdraw"
+	"github.com/mykeelium/visual-playground/meshes"
 	"github.com/mykeelium/visual-playground/sources"
 )
 
@@ -82,28 +83,34 @@ func (r *OscilloscopeRenderer) EndFrame(win *opengl.Window) {
 	)
 }
 
-func Oscilloscope(
-	params *sources.ScopeParams,
-	width, height float64) RenderFn {
+func Oscilloscope(mesh meshes.MeshID) RenderFn {
 	return func(ctx *RenderContext, fc *FrameContext) {
-		im := ctx.IM
-		im.SetMatrix(ctx.Transform)
-
-		centerX := width / 2
-		centerY := height / 2
-		scale := 0.45 * min(width, height)
-
-		for _, s := range fc.Samples {
-			x := centerX + s.XY.X*scale
-			y := centerY + s.XY.Y*scale
-			im.Push(pixel.V(x, y))
-		}
-
-		// for x := 0.0; x < width; x += 2 {
-		// 	y := math.Sin(x*0.02+ctx.Time) * height / 2
-		// 	im.Push(pixel.V(x, height/2+y))
-		// }
-
-		im.Line(1)
+		ctx.Backend.DrawMesh(mesh, ctx.Transform)
 	}
 }
+
+// func Oscilloscope(
+// 	params *sources.ScopeParams,
+// 	width, height float64) RenderFn {
+// 	return func(ctx *RenderContext, fc *FrameContext) {
+// 		im := ctx.IM
+// 		im.SetMatrix(ctx.Transform)
+//
+// 		centerX := width / 2
+// 		centerY := height / 2
+// 		scale := 0.45 * min(width, height)
+//
+// 		for _, s := range fc.Samples {
+// 			x := centerX + s.XY.X*scale
+// 			y := centerY + s.XY.Y*scale
+// 			im.Push(pixel.V(x, y))
+// 		}
+//
+// 		// for x := 0.0; x < width; x += 2 {
+// 		// 	y := math.Sin(x*0.02+ctx.Time) * height / 2
+// 		// 	im.Push(pixel.V(x, height/2+y))
+// 		// }
+//
+// 		im.Line(1)
+// 	}
+// }

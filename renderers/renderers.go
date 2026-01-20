@@ -5,14 +5,16 @@ import (
 	"github.com/gopxl/pixel/v2"
 	// "github.com/gopxl/pixel/v2/backends/opengl"
 	"github.com/gopxl/pixel/v2/ext/imdraw"
+	"github.com/mykeelium/visual-playground/meshes"
+	"github.com/mykeelium/visual-playground/primitives"
 	"github.com/mykeelium/visual-playground/sources"
 )
 
-// type Renderer interface {
-// 	BeginFrame(dt float64)
-// 	Draw(samples []sources.Sample)
-// 	EndFrame(target *opengl.Window)
-// }
+type RenderBackend interface {
+	BeginFrame(fc *FrameContext)
+	DrawMesh(meshID meshes.MeshID, tranform primitives.Matrix)
+	EndFrame(fc *FrameContext)
+}
 
 type Renderer interface {
 	BeginFrame(ctx *FrameContext)
@@ -23,30 +25,54 @@ type Renderer interface {
 type RenderFn func(ctx *RenderContext, fc *FrameContext)
 
 type GraphRenderer struct {
-	Root RenderFn
-	IM   *imdraw.IMDraw
+	Root    RenderFn
+	Backend RenderBackend
 }
 
-func (r *GraphRenderer) BeginFrame() {
-	if r.IM == nil {
-		r.IM = imdraw.New(nil)
+func (r *GraphRenderer) Render(fc *FrameContext) {
+	r.Backend.BeginFrame(fc)
+
+	ctx := RenderContext{
+		Backend:   r.Backend,
+		Transform: primitives.IM,
+		Time:      fc.Time,
 	}
 
-	r.IM.Clear()
+	r.Root(&ctx, fc)
+
+	r.Backend.EndFrame(fc)
 }
 
-func (r *GraphRenderer) Draw(ctx *FrameContext) {
-	renderCtx := RenderContext{
-		Target:    ctx.Target,
-		Transform: pixel.IM,
-		Time:      ctx.Time,
-		IM:        r.IM,
+// Pixel Compatibility
+type IMDrawBackend struct {
+	im       *imdraw.IMDraw
+	registry *meshes.MeshRegistry
+}
+
+func NewIMDrawBackend(registry *meshes.MeshRegistry) *IMDrawBackend {
+	return &IMDrawBackend{
+		registry: registry,
 	}
-	r.Root(&renderCtx, ctx)
 }
 
-func (r *GraphRenderer) EndFrame(ctx *FrameContext) {
-	r.IM.Draw(ctx.Target)
+func (b *IMDrawBackend) BeginFrame(fc *FrameContext) {
+	if b.im == nil {
+		b.im = imdraw.New(nil)
+	}
+	b.im.Clear()
+}
+
+func (b *IMDrawBackend) DrawMesh(meshID meshes.MeshID, transform primitives.Matrix) {
+	mesh := b.registry.Get(meshID)
+	b.im.SetMatrix(pixel.Matrix(transform))
+	for _, v := range mesh.Vertices {
+		b.im.Push(pixel.Vec{X: v.X, Y: v.Y})
+	}
+	b.im.Line(1)
+}
+
+func (b *IMDrawBackend) EndFrame(fc *FrameContext) {
+	b.im.Draw(fc.Target)
 }
 
 type FrameContext struct {
@@ -58,9 +84,8 @@ type FrameContext struct {
 }
 
 type RenderContext struct {
-	Target    pixel.Target
-	IM        *imdraw.IMDraw
-	Transform pixel.Matrix
+	Backend   RenderBackend
+	Transform primitives.Matrix
 	Time      float64
 }
 
@@ -70,17 +95,17 @@ func Tile(
 	cols, rows int,
 ) RenderFn {
 	return func(ctx *RenderContext, fc *FrameContext) {
-		for y := 0; y < rows; y++ {
-			for x := 0; x < cols; x++ {
+		for y := range rows {
+			for x := range cols {
 
 				local := *ctx // value copy
 
 				local.Transform =
 					ctx.Transform.
-						Moved(pixel.V(
-							float64(x)*width,
-							float64(y)*height,
-						))
+						Moved(primitives.Float2{
+							X: float64(x) * width,
+							Y: float64(y) * height,
+						})
 
 				base(&local, fc)
 			}

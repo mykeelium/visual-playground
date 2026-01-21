@@ -58,6 +58,16 @@ func (v Float2) Scale(f float64) Float2 {
 	return Float2{v.X * f, v.Y * f}
 }
 
+// Matrix type a 2x3 matrix
+type Matrix [6]float64
+
+var IM = Matrix{1, 0, 0, 1, 0, 0}
+
+func (m Matrix) Moved(delta Float2) Matrix {
+	m[4], m[5] = m[4]+delta.X, m[5]+delta.Y
+	return m
+}
+
 // The PhysicsComponent contains information for running the physics calculations for an object
 type PhysicsComponent struct {
 	Position     Float2
